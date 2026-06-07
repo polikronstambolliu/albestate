@@ -2,30 +2,35 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase, Property } from '@/lib/supabase'
-import { Search, MapPin, Maximize2, BedDouble, Bath } from 'lucide-react'
+import { Search, MapPin, Maximize2 } from 'lucide-react'
 
 const TYPE_LABELS: Record<string, string> = {
   apartament: 'Apartament', vila: 'Vilë', dyqan: 'Dyqan',
   are: 'Arë', troje: 'Troje', njesi_biznesi: 'Njësi Biznesi'
 }
-const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
-  available: { bg: '#f0fdf4', color: '#16a34a', label: 'E lirë' },
-  rented: { bg: '#fef9c3', color: '#ca8a04', label: 'Me qira' },
-  sold: { bg: '#fef2f2', color: '#dc2626', label: 'E shitur' },
+const STATUS: Record<string, { bg: string; color: string; label: string }> = {
+  available: { bg: '#f0fdf4', color: '#15803d', label: 'E lirë' },
+  rented:    { bg: '#fefce8', color: '#a16207', label: 'Me qira' },
+  sold:      { bg: '#fef2f2', color: '#b91c1c', label: 'E shitur' },
 }
-
-const FILTERS = [
+const TYPE_FILTERS = [
   { label: 'Të gjitha', value: 'all' },
   { label: 'Apartamente', value: 'apartamente' },
   { label: 'Toka/Arë', value: 'toka' },
   { label: 'Dyqane', value: 'dyqane' },
   { label: 'Njësi biznesi', value: 'njesi' },
 ]
+const STATUS_FILTERS = [
+  { label: 'Të gjitha', value: 'all' },
+  { label: 'Të lira', value: 'available' },
+  { label: 'Me qira', value: 'rented' },
+  { label: 'Të shitura', value: 'sold' },
+]
 
 export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([])
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [loading, setLoading] = useState(true)
 
@@ -35,19 +40,18 @@ export default function PropertiesPage() {
   }, [])
 
   const filtered = properties.filter(p => {
-    const matchSearch = p.title.toLowerCase().includes(search.toLowerCase()) ||
-      p.city.toLowerCase().includes(search.toLowerCase()) ||
-      (p.neighborhood || '').toLowerCase().includes(search.toLowerCase())
-    const matchType = filter === 'all' ||
-      (filter === 'apartamente' && ['apartament', 'vila'].includes(p.type)) ||
-      (filter === 'toka' && ['are', 'troje'].includes(p.type)) ||
-      (filter === 'dyqane' && p.type === 'dyqan') ||
-      (filter === 'njesi' && p.type === 'njesi_biznesi')
+    const q = search.toLowerCase()
+    const matchSearch = p.title.toLowerCase().includes(q) || p.city.toLowerCase().includes(q) || (p.neighborhood||'').toLowerCase().includes(q)
+    const matchType = typeFilter === 'all'
+      || (typeFilter === 'apartamente' && ['apartament','vila'].includes(p.type))
+      || (typeFilter === 'toka' && ['are','troje'].includes(p.type))
+      || (typeFilter === 'dyqane' && p.type === 'dyqan')
+      || (typeFilter === 'njesi' && p.type === 'njesi_biznesi')
     const matchStatus = statusFilter === 'all' || p.status === statusFilter
     return matchSearch && matchType && matchStatus
   })
 
-  const formatPrice = (p: Property) => {
+  const price = (p: Property) => {
     if (p.monthly_rent_eur) return `€${p.monthly_rent_eur.toLocaleString()}/muaj`
     if (p.price_eur) return `€${p.price_eur.toLocaleString()}`
     if (p.price_lek_m2) return `${p.price_lek_m2.toLocaleString()} L/m²`
@@ -55,44 +59,38 @@ export default function PropertiesPage() {
   }
 
   return (
-    <div className="flex gap-8">
+    <div className="flex gap-10">
       {/* Sidebar filters */}
-      <aside className="hidden lg:block w-56 flex-shrink-0">
-        <div className="sticky top-24 space-y-6">
+      <aside className="hidden lg:block w-52 flex-shrink-0">
+        <div className="sticky top-24 space-y-8">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Lloji</p>
-            <div className="space-y-1">
-              {FILTERS.map(f => (
-                <button key={f.value} onClick={() => setFilter(f.value)}
-                  className="w-full text-left px-3 py-2 rounded-lg text-sm transition-all"
+            <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--outline)' }}>Lloji</p>
+            <div className="space-y-0.5">
+              {TYPE_FILTERS.map(f => (
+                <button key={f.value} onClick={() => setTypeFilter(f.value)}
+                  className="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all"
                   style={{
-                    background: filter === f.value ? 'var(--cream-dark)' : 'transparent',
-                    color: filter === f.value ? 'var(--burgundy)' : 'var(--text-muted)',
-                    fontWeight: filter === f.value ? '600' : '400',
+                    background: typeFilter === f.value ? 'var(--surface-container)' : 'transparent',
+                    color: typeFilter === f.value ? 'var(--primary)' : 'var(--on-surface-variant)',
+                    fontWeight: typeFilter === f.value ? '600' : '400',
                   }}>
                   {f.label}
                 </button>
               ))}
             </div>
           </div>
-
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Statusi</p>
-            <div className="space-y-1">
-              {[
-                { label: 'Të gjitha', value: 'all' },
-                { label: 'Të lira', value: 'available' },
-                { label: 'Me qira', value: 'rented' },
-                { label: 'Të shitura', value: 'sold' },
-              ].map(s => (
-                <button key={s.value} onClick={() => setStatusFilter(s.value)}
-                  className="w-full text-left px-3 py-2 rounded-lg text-sm transition-all"
+            <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--outline)' }}>Statusi</p>
+            <div className="space-y-0.5">
+              {STATUS_FILTERS.map(f => (
+                <button key={f.value} onClick={() => setStatusFilter(f.value)}
+                  className="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all"
                   style={{
-                    background: statusFilter === s.value ? 'var(--cream-dark)' : 'transparent',
-                    color: statusFilter === s.value ? 'var(--burgundy)' : 'var(--text-muted)',
-                    fontWeight: statusFilter === s.value ? '600' : '400',
+                    background: statusFilter === f.value ? 'var(--surface-container)' : 'transparent',
+                    color: statusFilter === f.value ? 'var(--primary)' : 'var(--on-surface-variant)',
+                    fontWeight: statusFilter === f.value ? '600' : '400',
                   }}>
-                  {s.label}
+                  {f.label}
                 </button>
               ))}
             </div>
@@ -100,34 +98,34 @@ export default function PropertiesPage() {
         </div>
       </aside>
 
-      {/* Main content */}
+      {/* Main */}
       <div className="flex-1 min-w-0">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        {/* Header row */}
+        <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
           <div>
-            <h1 className="font-display text-2xl font-bold" style={{ color: 'var(--maroon)' }}>Pronat</h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>{filtered.length} prona</p>
+            <h1 className="font-display text-3xl font-bold" style={{ color: 'var(--on-surface)' }}>Pronat</h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--on-surface-variant)' }}>{filtered.length} prona</p>
           </div>
           <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--outline)' }} />
             <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Kërko..."
-              className="pl-9 pr-4 py-2 rounded-xl border text-sm outline-none w-56"
-              style={{ borderColor: 'var(--cream-dark)', background: 'white' }}
-              onFocus={e => e.target.style.borderColor = 'var(--mauve)'}
-              onBlur={e => e.target.style.borderColor = 'var(--cream-dark)'} />
+              placeholder="Kërko pronë..."
+              className="pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none w-60"
+              style={{ background: 'var(--surface-lowest)', border: '1px solid var(--outline-variant)' }}
+              onFocus={e => e.target.style.border = '1px solid var(--primary)'}
+              onBlur={e => e.target.style.border = '1px solid var(--outline-variant)'} />
           </div>
         </div>
 
         {/* Mobile filters */}
-        <div className="lg:hidden flex gap-2 overflow-x-auto pb-2 mb-4">
-          {FILTERS.map(f => (
-            <button key={f.value} onClick={() => setFilter(f.value)}
+        <div className="lg:hidden flex gap-2 overflow-x-auto pb-3 mb-4">
+          {TYPE_FILTERS.map(f => (
+            <button key={f.value} onClick={() => setTypeFilter(f.value)}
               className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all"
               style={{
-                background: filter === f.value ? 'var(--burgundy)' : 'white',
-                color: filter === f.value ? 'white' : 'var(--text-muted)',
-                borderColor: filter === f.value ? 'var(--burgundy)' : 'var(--cream-dark)',
+                background: typeFilter === f.value ? 'var(--primary)' : 'var(--surface-lowest)',
+                color: typeFilter === f.value ? 'white' : 'var(--on-surface-variant)',
+                borderColor: typeFilter === f.value ? 'var(--primary)' : 'var(--outline-variant)',
               }}>
               {f.label}
             </button>
@@ -136,71 +134,69 @@ export default function PropertiesPage() {
 
         {/* Grid */}
         {loading ? (
-          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
             {[1,2,3,4,5,6].map(i => (
-              <div key={i} className="rounded-2xl overflow-hidden border animate-pulse" style={{ background: 'white', borderColor: 'var(--cream-dark)' }}>
-                <div className="h-48" style={{ background: 'var(--cream-dark)' }} />
-                <div className="p-4 space-y-2">
-                  <div className="h-4 rounded" style={{ background: 'var(--cream-dark)', width: '70%' }} />
-                  <div className="h-3 rounded" style={{ background: 'var(--cream-dark)', width: '50%' }} />
+              <div key={i} className="rounded-xl overflow-hidden animate-pulse" style={{ background: 'var(--surface-lowest)' }}>
+                <div className="aspect-video" style={{ background: 'var(--surface-container)' }} />
+                <div className="p-6 space-y-2">
+                  <div className="h-5 rounded" style={{ background: 'var(--surface-container)', width: '60%' }} />
+                  <div className="h-3 rounded" style={{ background: 'var(--surface-container)', width: '40%' }} />
                 </div>
               </div>
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="font-display text-xl mb-2" style={{ color: 'var(--maroon)' }}>Nuk u gjetën prona</p>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Ndryshoni filtrat ose shtoni një pronë të re</p>
+          <div className="text-center py-24">
+            <p className="text-lg font-semibold mb-1" style={{ color: 'var(--on-surface)' }}>Nuk u gjetën prona</p>
+            <p className="text-sm" style={{ color: 'var(--on-surface-variant)' }}>Ndryshoni filtrat ose shtoni pronë të re</p>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
             {filtered.map(p => {
-              const s = STATUS_STYLES[p.status]
+              const s = STATUS[p.status]
               const img = p.images?.[0]
               return (
                 <Link key={p.id} href={`/properties/${p.id}`}
-                  className="rounded-2xl overflow-hidden border block transition-all duration-200 group"
-                  style={{ background: 'white', borderColor: 'var(--cream-dark)', boxShadow: '0 2px 12px var(--shadow)' }}
-                  onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 30px var(--shadow-hover)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                  onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 12px var(--shadow)'; e.currentTarget.style.transform = 'translateY(0)' }}>
-                  {/* Image */}
-                  <div className="relative overflow-hidden" style={{ height: '190px', background: 'var(--cream-dark)' }}>
+                  className="property-shadow rounded-xl overflow-hidden block group cursor-pointer border border-transparent hover:border-outline-variant transition-all duration-200"
+                  style={{ background: 'var(--surface-lowest)' }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--outline-variant)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'transparent'}>
+                  {/* Image 16:9 */}
+                  <div className="aspect-video overflow-hidden relative" style={{ background: 'var(--surface-container)' }}>
                     {img ? (
-                      <img src={img} alt={p.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <img src={img} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                          <path d="M3 12L12 3L21 12V21H15V15H9V21H3V12Z" fill="var(--mauve)" opacity="0.2" />
+                          <path d="M3 12L12 3L21 12V21H15V15H9V21H3V12Z" fill="var(--outline-variant)" />
                         </svg>
                       </div>
                     )}
-                    <span className="absolute top-3 left-3 text-xs px-2.5 py-1 rounded-full font-semibold"
-                      style={{ background: s.bg, color: s.color }}>{s.label}</span>
-                    <span className="absolute top-3 right-3 text-xs px-2.5 py-1 rounded-full font-semibold"
-                      style={{ background: 'rgba(0,0,0,0.55)', color: 'white' }}>{TYPE_LABELS[p.type]}</span>
+                    <span className="absolute top-3 left-3 text-xs px-2 py-1 rounded font-semibold"
+                      style={{ background: 'rgba(255,255,255,0.92)', color: 'var(--on-surface-variant)' }}>
+                      {TYPE_LABELS[p.type]}
+                    </span>
+                    <span className="absolute top-3 right-3 text-xs px-2 py-1 rounded font-semibold"
+                      style={{ background: s.bg, color: s.color }}>
+                      {s.label}
+                    </span>
                   </div>
 
                   {/* Content */}
-                  <div className="p-4">
-                    <p className="font-semibold text-sm mb-1 truncate" style={{ color: 'var(--maroon)' }}>{p.title}</p>
-                    <div className="flex items-center gap-1 mb-3">
-                      <MapPin size={11} style={{ color: 'var(--text-light)' }} />
-                      <span className="text-xs truncate" style={{ color: 'var(--text-light)' }}>
-                        {p.city}{p.neighborhood ? `, ${p.neighborhood}` : ''}
-                      </span>
+                  <div className="p-6">
+                    <p className="font-bold text-base mb-1 truncate" style={{ color: 'var(--on-surface)' }}>{price(p)}</p>
+                    <p className="text-sm mb-4 truncate" style={{ color: 'var(--on-surface-variant)' }}>
+                      {p.title}
+                    </p>
+                    <div className="flex items-center gap-1 text-xs mb-4" style={{ color: 'var(--on-surface-variant)' }}>
+                      <MapPin size={12} />{p.city}{p.neighborhood ? `, ${p.neighborhood}` : ''}
                     </div>
-
-                    {/* Features row */}
-                    {(p.rooms || p.bathrooms || p.size_m2) && (
-                      <div className="flex items-center gap-3 mb-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-                        {p.rooms && <span className="flex items-center gap-1"><BedDouble size={12} />{p.rooms}</span>}
-                        {p.bathrooms && <span className="flex items-center gap-1"><Bath size={12} />{p.bathrooms}</span>}
-                        {p.size_m2 && <span className="flex items-center gap-1"><Maximize2 size={12} />{p.size_m2} m²</span>}
-                      </div>
-                    )}
-
-                    <div className="pt-3 border-t" style={{ borderColor: 'var(--cream-dark)' }}>
-                      <span className="font-display font-bold text-lg" style={{ color: 'var(--burgundy)' }}>{formatPrice(p)}</span>
+                    {/* Feature row */}
+                    <div className="flex justify-between border-t pt-4 text-xs" style={{ borderColor: 'var(--outline-variant)', color: 'var(--on-surface-variant)' }}>
+                      {p.rooms && <span className="flex items-center gap-1">🛏 {p.rooms}</span>}
+                      {p.bathrooms && <span className="flex items-center gap-1">🚿 {p.bathrooms}</span>}
+                      {p.size_m2 && <span className="flex items-center gap-1"><Maximize2 size={11} /> {p.size_m2} m²</span>}
+                      {!p.rooms && !p.bathrooms && !p.size_m2 && <span style={{ color: 'var(--outline)' }}>—</span>}
                     </div>
                   </div>
                 </Link>
